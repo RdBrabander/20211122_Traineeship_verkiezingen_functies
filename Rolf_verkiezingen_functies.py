@@ -7,33 +7,33 @@ df = pd.read_csv(r'C:/Users/Braba/Downloads/Uitslag_alle_gemeenten_TK20210317.cs
 
 # localhost:8000/vvd hoeveel mensen in amsterdam op vvd hebben gestemd
 # manier 1, antwoord in int vorm
-df[df['RegioNaam'] == 'Amsterdam'].index
-df['VVD'][15]
+index = df[df['RegioNaam'] == 'Amsterdam'].index
+print(df['VVD'][index])
 
 # manier 2, tabelvorm
 VVDstemInAmsterdam = df[df['RegioNaam'] == 'Amsterdam'][['RegioNaam', 'VVD']]
 VVDstemInAmsterdam
 
 # localhost:8000/rangschikking/vvd volgorde van gemeentes van veel naar weinig voor vvd
-dfVVDperGemeente = df[['RegioNaam', 'VVD']].sort_values(['VVD'], ascending=False)
-dfVVDperGemeente.head()
+dfVVD_per_gemeente = df[['RegioNaam', 'VVD']].sort_values(['VVD'], ascending=False)
+dfVVD_per_gemeente.head()
 
 # localhost:8000/rangschikking/{vvd} volgorde van gemeentes van veel naar weinig voor keuze
-def partijpergemeente(partij='VVD'):
+def partij_per_gemeente(partij='VVD'):
     """
     Deze functie laat het aantal stemmen per Gemeente zien op een partij naar keuze. VVD is de default partij.
     """
-    dfPartijpergemeente = df[['RegioNaam', partij]]
-    gesorteerd = dfPartijpergemeente.sort_values([partij], ascending=False)
+    df_partij_per_gemeente = df[['RegioNaam', partij]]
+    gesorteerd = df_partij_per_gemeente.sort_values([partij], ascending=False)
     return gesorteerd
 
-partijpergemeente('D66')
+partij_per_gemeente('D66')
 
 # localhost:8000/geldig/{stad} zien ongeldig vs geldig percentage
 def geldigheid1(stad = 'Amsterdam'):
     """
     Deze functie berekent een percentage als numpy.float. Dit is gedaan door de index anders te genereren.
-    .index geeft een complexe panda series (class?) terug. Door te indexen op de [0] komt er een numpy.int ipv een series.
+    .index geeft een complexe panda series (class?) terug. Indexen op de [0] geeft een numpy.int ipv een series.
     Doordat de index nu een int is, worden geldig en ongeldig ook als int teruggegeven ipv een panda series. Hoe dit komt is niet duidelijk.
     Percentage wordt afgerond op 2 decimalen.
     De return is index, stad, geldig, ongeldig, percentage.
@@ -48,28 +48,26 @@ def geldigheid1(stad = 'Amsterdam'):
 geldigheid1('Stein')[4]
 
 # localhost:8000/geldig/ steden in volgorde van percentage ongeldig
-def Validity():
+def geldigheid_overal():
     """
     Deze functie berekent het percentage ongeldige stemmen per regio en returnt dit in een dataframe.
     """
     # stap 1: append alle percentages in een list mbv geldigheid1 (al eerder gedefinieerd).
-    validPerc = [] * df['RegioNaam'].size
+    geldig_perc_lijst = []
     for regio in df['RegioNaam']:
-        var = geldigheid1(regio)[4]
-        validPerc.append(var)
+        geldig_perc_lijst.append(geldigheid1(regio)[4])
 
     # stap 2: creer een dataframe van regionaam en percentages
-    myser = pd.Series(validPerc, name='Geldigheid')
-    mydf1 = pd.concat([df['RegioNaam'], myser], axis = 1)
+    mijn_ser = pd.Series(geldig_perc_lijst, name='Geldigheid')
+    mijn_df1 = pd.concat([df['RegioNaam'], mijn_ser], axis = 1)
 
     #mydata = {'RegioNaam': df['RegioNaam'], 'Geldigheid': validPerc}
     #Gelddf = pd.DataFrame(data=mydata)
 
     # stap 3: sorteer dataframe op ongeldigheid van hoog naar laag
-    mydfsorted = mydf1.sort_values(['Geldigheid'], ascending=False)
-    return mydfsorted
-
-Validity()
+    mijn_df_sorted = mijn_df1.sort_values(['Geldigheid'], ascending=False)
+    return mijn_df_sorted
+geldigheid_overal()
 
 # localhost:8000/uitslag/{gemeente} volgorde van partij
 def stem_stad(stad='Amsterdam'):
@@ -77,14 +75,14 @@ def stem_stad(stad='Amsterdam'):
     Deze functie returnt een dataframe waarin het aantal stemmen per partij van hoog naar laag staan in een meegegeven gemeente. Amsterdam is default.
     """
     df_stemmen = df[list(df.columns[9:])]
-    index = df_stemmen[df_stemmen['RegioNaam'] == stad].index[0]
-    row = df_stemmen.loc[index][1:]
-    data = {'Aantal stemmen': row}
-    mydf = pd.DataFrame(data).sort_values(['Aantal stemmen'], ascending=False)
-    mydf.index.name = 'Regio'
-    return mydf
-
+    index = df[df['RegioNaam'] == stad].index[0]
+    rij = df_stemmen.loc[index][1:]
+    data = {'Aantal stemmen': rij}
+    mijn_df = pd.DataFrame(data).sort_values(['Aantal stemmen'], ascending=False)
+    mijn_df.index.name = 'Regio'
+    return mijn_df
 stem_stad()
+
 # localhost:8000/landelijke uitslag landelijke uitslag
 def landelijke_uitslag(data=df):
     """
@@ -92,31 +90,27 @@ def landelijke_uitslag(data=df):
     Het returnt een dictionary.
     """
     # stap 1: het totaal aantal stemmen en kiesdeler
-    totaalStemmen = data['GeldigeStemmen'].sum()
-    totaalZetels = 150
-    kiesdeler = totaalStemmen / totaalZetels
+    totaal_stemmen = data['GeldigeStemmen'].sum()
+    totaal_zetels = 150
+    kiesdeler = totaal_stemmen / totaal_zetels
 
-    # stap 2: het totaal aantal stemmen per partij dat voldoet aan de kiesdeler
+    # stap 2: aantal stemmen, zetels en rest stemmen per partij
     stemmen_per_partij = {}
+    zetels_per_partij = {}
+    rest_zetels = {}
     for partij in data.columns[10:]:
         if data[partij].sum() > kiesdeler:
-            stemmen_per_partij[partij] = data[partij].sum()
+            aantal_stemmen = data[partij].sum()
+            stemmen_per_partij[partij] = aantal_stemmen
+            zetels_per_partij[partij] = aantal_stemmen // kiesdeler 
+            aantal_zetels = zetels_per_partij[partij]
+            rest_zetels[partij] = aantal_stemmen / (aantal_zetels + 1)
 
     # stap 3: het aantal volledige zetels per partij
-    zetels_per_partij = {}
-    for partij, aantal_stemmen in stemmen_per_partij.items():
-        zetels_per_partij[partij] = aantal_stemmen // kiesdeler 
-
-    # stap 4: verdeling restzetels
     while sum(zetels_per_partij.values()) < totaalZetels:
-        hoogste = ['naam', 0]
-        for partij, aantal_stemmen in stemmen_per_partij.items():
-            aantal_zetels = zetels_per_partij[partij]
-            rest = aantal_stemmen / (aantal_zetels + 1)
-            if rest > hoogste[1]:
-                hoogste[0] = partij
-                hoogste[1] = rest
-        zetels_per_partij[hoogste[0]] = zetels_per_partij[hoogste[0]] +1
+        hoogste = max(rest_zetels, key=rest_zetels.get)
+        zetels_per_partij[hoogste] += 1
+        rest_zetels[hoogste] = stemmen_per_partij[hoogste] / (zetels_per_partij[hoogste] +1)
     return zetels_per_partij
 
 landelijke_uitslag()
